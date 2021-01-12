@@ -1,6 +1,7 @@
 #include <string>
-
+#include <iomanip>
 #include "format.h"
+#include <sstream>
 
 using std::string;
 
@@ -16,7 +17,9 @@ string Format::ElapsedTime(long seconds)
     int MM = Uptime / 60; 
     Uptime %= 60; 
     int SS = Uptime; 
-    std::string time = std::to_string(HH)+":"+std::to_string(MM)+":"+std::to_string(SS);
+    //std::string time = std::to_string(HH)+":"+std::to_string(MM)+":"+std::to_string(SS);
+    std::stringstream time; 
+    time <<std::setw(2)<<std::setfill('0')<<std::to_string(HH)<<":"<<std::setw(2)<<std::setfill('0')<<std::to_string(MM)<<":"<<std::setw(2)<<std::setfill('0')<<std::to_string(SS);
     //std::cout<<time<<"\n";
-    return time; 
+    return time.str(); 
 }

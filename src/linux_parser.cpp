@@ -74,7 +74,7 @@ vector<int> LinuxParser::Pids() {
 float LinuxParser::MemoryUtilization() 
 { 
   string value, line, variable; 
-  float MemUtil, MemFree, MemTotal, MemAvailable; 
+  float MemUtil, MemFree, MemTotal;//, MemAvailable; 
   std::ifstream filestream(kProcDirectory+kMeminfoFilename);
   if(filestream.is_open())
   {
@@ -84,11 +84,11 @@ float LinuxParser::MemoryUtilization()
       linestream>>variable>>value;
       if(variable == "MemTotal:"){MemTotal = stof(value);}
       if(variable== "MemFree:"){MemFree = stof(value);}
-      if(variable== "MemAvailable:"){MemAvailable = stof(value);}
+      //if(variable== "MemAvailable:"){MemAvailable = stof(value);}
     } 
   }
 
-  MemUtil =(MemTotal-MemAvailable)/MemTotal;
+  MemUtil =(MemTotal-MemFree)/MemTotal;
   
   return MemUtil; 
 }
@@ -104,13 +104,13 @@ long LinuxParser::UpTime()
     std::istringstream linestream(line);
     linestream>>value; 
   }
-  return stof(value); 
+  return stol(value); 
 }
 
-// NOT USED: Read and return the number of jiffies for the system
-long LinuxParser::Jiffies() 
+// DONE: Read and return the number of jiffies for the system
+float LinuxParser::Jiffies() 
 { 
-   return 0; 
+   return LinuxParser::ActiveJiffies()+IdleJiffies(); 
 }
 
 // DONE: Read and return the number of active jiffies for a PID
@@ -132,21 +132,34 @@ long LinuxParser::ActiveJiffies(int pid)
     linestream>>utime>>stime>>cutime>>cstime; 
   }
   
-  long seconds = (utime+stime)/sysconf(_SC_CLK_TCK); 
+  long seconds = (utime+stime+cutime+cstime)/sysconf(_SC_CLK_TCK); 
 
   return seconds;   
 }
 
 // NOT USED: Read and return the number of active jiffies for the system
-long LinuxParser::ActiveJiffies() 
+float LinuxParser::ActiveJiffies() 
 { 
-  return 0; 
+  vector<string> cpu_param = LinuxParser::CpuUtilization(); 
+  long usertime = stol(cpu_param[kUser_]) - stol(cpu_param[kGuest_]); 
+  long nicetime = stol(cpu_param[kNice_]) - stol(cpu_param[kGuestNice_]);
+  long system_total = stol(cpu_param[kSystem_])+stol(cpu_param[LinuxParser::CPUStates::kIRQ_])+stof(cpu_param[kSoftIRQ_]);
+  long guest_total = stol(cpu_param[kGuest_])+stol(cpu_param[kGuestNice_]);
+  float activejiff_total = usertime+nicetime+system_total+guest_total+stol(cpu_param[kSteal_]);
+  //debugging
+  //std::ofstream debug("/home/help.txt",std::ios_base::app);
+  //debug<<"Total Active Jiffies = "<<activejiff_total<<"\n";
+  //debug.close();
+  
+  return activejiff_total; 
 }
 
 // NOT USED: Read and return the number of idle jiffies for the system
-long LinuxParser::IdleJiffies() 
+float LinuxParser::IdleJiffies() 
 { 
-  return 0; 
+  vector<string> cpu_param = LinuxParser::CpuUtilization();
+  long idle_total = stol(cpu_param[kIdle_])+stol(cpu_param[kIOwait_]);
+  return idle_total; 
 }
 
 // DONE: Read and return CPU utilization
@@ -161,6 +174,12 @@ vector<string> LinuxParser::CpuUtilization()
       std::istringstream linestream(line); 
       linestream>>var>>cpu_temp[kUser_]>>cpu_temp[kNice_]>>cpu_temp[kSystem_]>>cpu_temp[kIdle_]>>cpu_temp[kIOwait_]>>cpu_temp[kIRQ_]>>cpu_temp[kSoftIRQ_]>>cpu_temp[kSteal_]>>cpu_temp[kNice_]>>cpu_temp[kGuestNice_];
    }
+     //debugging code
+     /*
+      std::ofstream debug("/home/help.txt",std::ios_base::app); 
+      debug<<"CPU ks: "<<cpu_temp[kUser_]<<" "<<cpu_temp[kNice_]<<" "<<cpu_temp[kSystem_]<<" "<<cpu_temp[kIdle_]<<" "<<cpu_temp[kIOwait_]<<" "<<cpu_temp[kIRQ_]<<" "<<cpu_temp[kSoftIRQ_]<<" "<<cpu_temp[kSteal_]<<" "<<cpu_temp[kNice_]<<" "<<cpu_temp[kGuestNice_]<<"\n";
+      debug.close();
+      */
   return cpu_temp; 
 }
 
@@ -297,7 +316,7 @@ long LinuxParser::UpTime(int pid)
     }
   }
  
-  long seconds = LinuxParser::UpTime() - stof(data)/sysconf(_SC_CLK_TCK); //subtract the time the process started from the total time
+  long seconds = LinuxParser::UpTime() - stol(data)/sysconf(_SC_CLK_TCK); //subtract the time the process started from the total time
 
   return seconds; 
 }

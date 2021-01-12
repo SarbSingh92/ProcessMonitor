@@ -3,22 +3,18 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <unistd.h>
 using std::vector; 
 using std::stof;
 
 // DONE: Return the aggregate CPU utilization
 float Processor::Utilization() 
 {
-    std::vector<std::string>cpu_param = LinuxParser::CpuUtilization(); //create vector of strings to store CPU Time values 
-    //total cpu time is calculated utilization definition discussed at 
-    //https://stackoverflow.com/questions/23367857/accurate-calculation-of-cpu-usage-given-in-percentage-in-linux
-    float usertime = stof(cpu_param[LinuxParser::CPUStates::kUser_]) -stof(cpu_param[LinuxParser::CPUStates::kGuest_]); 
-    float nicetime = stof(cpu_param[LinuxParser::CPUStates::kNice_]) - stof(cpu_param[LinuxParser::CPUStates::kGuestNice_]);
-
-    float idle_total = stof(cpu_param[LinuxParser::CPUStates::kIdle_])+stof(cpu_param[LinuxParser::CPUStates::kIOwait_]);
-    float system_total = stof(cpu_param[LinuxParser::CPUStates::kSystem_])+stof(cpu_param[LinuxParser::CPUStates::kIRQ_])+stof(cpu_param[LinuxParser::CPUStates::kSoftIRQ_]);
-    float guest_total = stof(cpu_param[LinuxParser::CPUStates::kGuest_])+stof(cpu_param[LinuxParser::CPUStates::kGuestNice_]);
-    float cpu_util_total = usertime+nicetime+idle_total+system_total+guest_total+stof(cpu_param[LinuxParser::CPUStates::kSteal_]);
+    /* Attempt at dynamic processor utilization - still in progress
+    
+   float idle_total = LinuxParser::IdleJiffies();
+   float cpu_util_total = LinuxParser::Jiffies(); 
+   
  
     float total_diff = cpu_util_total - prev_total; 
     float idle_diff = idle_total - prev_idle;
@@ -26,6 +22,14 @@ float Processor::Utilization()
     prev_total = cpu_util_total; 
     prev_idle = idle_total; 
     float cpu_util_percent = (total_diff - idle_diff)/total_diff; 
-
+    */
+   //average CPU utilization
+    long uptime = LinuxParser::UpTime();
+    float cpu_util_percent = (LinuxParser::ActiveJiffies()/sysconf(_SC_CLK_TCK))/uptime;
+    //debugging 
+    //std::ofstream debug("/home/help.txt",std::ios_base::app);
+    //debug<<"CPU: "<<cpu_util_percent<<" Active Jiffs = "<<LinuxParser::ActiveJiffies()<<" Clock Freq: "<<sysconf(_SC_CLK_TCK)<<" UpTime: "<<uptime<<"\n";
+    //debug.close();
+    
     return cpu_util_percent; 
 }
